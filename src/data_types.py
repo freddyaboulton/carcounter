@@ -63,3 +63,4 @@ class TrackedObject:
         track.id = state['id']
         # ensures the tracker uses the latest id
         cls._ID = state['id']
+        return track

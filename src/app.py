@@ -20,11 +20,9 @@ def main():
         abort(400)
     date_time = request.json['date_time']
 
-    image = np.array(request.json['image'], dtype='uint8')#np.frombuffer(request.json['image'], dtype='uint8')
-    #image = np.frombuffer(image, dtype='uint8')
-    image = image.reshape((IMAGE_HEIGHT, IMAGE_WIDTH, 3))
+    image = np.array(request.json['image'], dtype='uint8')
     queue.enqueue(process_image, args=(date_time, image))
-
+    return 200
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', debug=True)
