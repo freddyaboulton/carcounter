@@ -6,19 +6,14 @@ import cv2
 Box = Tuple[int, int, int, int]
 
 class TrackedObject:
-
-    _ID = 0
     
-    def __init__(self, min_x: int, min_y: int, max_x: int, max_y: int):
+    def __init__(self, track_id: int, bounding_box: Box):
+        
+        min_x, min_y, max_x, max_y = bounding_box
 
         self.corners = (min_x, min_y), (max_x, max_y)
         self.color = self._get_color()
-        self.id = self._ID
-        self.update_counter()
-
-    @classmethod
-    def update_counter(cls,):
-        cls._ID += 1
+        self.id = track_id
     
     def _get_color(self):
         return (randint(0, 255), randint(0, 255), randint(0, 255))
@@ -49,18 +44,11 @@ class TrackedObject:
         self.corners = (box[0], box[1]), (box[2], box[3])
     
     def serialize(self) -> Dict[str, Any]:
-        return {'corners': [self.corners[0], self.corners[1]],
+        return {'box': [*self.corners[0], *self.corners[1]],
                 'color': self.color,
                 'id': self.id}
     
     @classmethod
     def deserialize(cls, state: Dict[str, Any]) -> Any:
-        track = TrackedObject(state['corners'][0][0],
-                              state['corners'][0][1],
-                              state['corners'][1][0],
-                              state['corners'][1][1])
+        track = TrackedObject(state['id'], state['box'])
         track.color = state['color']
-        track.id = state['id']
-        # ensures the tracker uses the latest id
-        cls._ID = state['id']
-        return track

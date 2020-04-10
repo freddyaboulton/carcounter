@@ -1,14 +1,18 @@
-import os
-from typing import List, Dict, Any
-from data_types import Box, TrackedObject
-from constants import CAR_INDEX, IMAGE_HEIGHT, IMAGE_WIDTH, MODEL_ENDPOINT, DB_USER, DB_PASSWORD, DB_URI, DB_NAME
-from tracker import CentroidTracker
-import requests
 import json
+import os
+from typing import Any, Dict, List
+
 import numpy as np
 import psycopg2
 import redis
+import requests
 from PIL import Image
+import struct
+
+from src.constants import (CAR_INDEX, DB_NAME, DB_PASSWORD, DB_URI, DB_USER,
+                       IMAGE_HEIGHT, IMAGE_WIDTH, MODEL_ENDPOINT)
+from src.data_types import Box, TrackedObject
+from src.tracker import CentroidTracker
 
 headers= {'content-type': 'application/json'}
 
@@ -64,6 +68,24 @@ def cache_tracker_state() -> None:
     cache.set('tracker-state', json.dumps(tracker_state))
 
 
+def to_redis(cache, a: np.ndarray, key: str) -> None:
+   """Store given Numpy array 'a' in Redis under key 'n'"""
+   h, w = a.shape
+   shape = struct.pack('>II',h, w)
+   encoded = shape + a.tobytes()
+
+   # Store encoded data in Redis
+   cache.set(key, encoded)
+
+
+def from_redis(cache, key: str) -> np.ndarray:
+   """Retrieve Numpy array from Redis key 'n'"""
+   encoded = cache.get(key)
+   h, w = struct.unpack('>II', encoded[:8])
+   a = np.frombuffer(encoded, dtype=np.uint16, offset=8).reshape(h,w)
+   return a
+
+
 def process_image(date_time: str, image: np.ndarray) -> None:
 
     assert image.shape == (IMAGE_HEIGHT, IMAGE_WIDTH, 3)
@@ -89,6 +111,6 @@ def process_image(date_time: str, image: np.ndarray) -> None:
     
     cache_tracker_state()
 
-    Image.fromarray(img_with_objects.astype("uint8")).save(f"server/img_{date_time}.png")
+    to_redis(cache, img_with_objects, 'latest-image')
 
 

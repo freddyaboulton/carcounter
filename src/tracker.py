@@ -1,21 +1,26 @@
 from typing import Dict, List, Any
 import numpy as np
-from data_types import TrackedObject, Box
+from src.data_types import TrackedObject, Box
 from collections import OrderedDict
 from scipy.spatial import distance as dist
 
 class CentroidTracker:
 
-    def __init__(self, max_missing_frames: int = 5):
+    def __init__(self, starting_id: int = 0, max_missing_frames: int = 5):
 
         self.objects: Dict[int, TrackedObject] = OrderedDict()
         self.disappeared: Dict[int, int] = OrderedDict()
         self.max_missing_frames = max_missing_frames
+        self.current_id = starting_id
     
     def register(self, box: Box) -> None:
-        tracked_object = TrackedObject(*box)
+        tracked_object = TrackedObject(self.current_id, box)
+        self._update_id()
         self.objects[tracked_object.id] = tracked_object
         self.disappeared[tracked_object.id] = 0
+    
+    def _update_id(self) -> None:
+        self.current_id += 1
     
     def deregister(self, object_id: int) -> None:
         del self.objects[object_id]
@@ -25,14 +30,15 @@ class CentroidTracker:
         objects = {ID: track.serialize() for ID, track in self.objects.items()}
         return {'objects': objects,
                 'disappeared': self.disappeared,
-                'max_missing_frames': self.max_missing_frames}
+                'max_missing_frames': self.max_missing_frames,
+                'current_id': self.current_id}
     
     @classmethod
     def deserialize(cls, state: Dict[str, Any]) -> Any:
         objects = OrderedDict({ID: TrackedObject.deserialize(track)\
                                for ID, track in state['objects'].items()})
         disappeared = OrderedDict(state['disappeared'])
-        tracker = CentroidTracker(state['max_missing_frames'])
+        tracker = CentroidTracker(state['current_id'], state['max_missing_frames'])
         tracker.objects = objects
         tracker.disappeared = disappeared
         return tracker

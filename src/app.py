@@ -1,9 +1,9 @@
-from flask import Flask
+from flask import Flask, Response
 from flask import request, abort
 from redis import Redis
 from rq import Queue
-from worker import process_image
-from constants import IMAGE_HEIGHT, IMAGE_WIDTH
+from src.worker import process_image, from_redis
+from src.constants import IMAGE_HEIGHT, IMAGE_WIDTH
 import numpy as np
 import datetime
 import base64
@@ -23,6 +23,24 @@ def main():
     image = np.array(request.json['image'], dtype='uint8')
     queue.enqueue(process_image, args=(date_time, image))
     return 200
+
+
+def infinite_stream():
+    while True:
+        if cache.exists('latest-image'):
+            image = from_redis(cache, 'latest-image')
+            image = image.tobytes()
+        else:
+            image = np.zeros((300, 300, 3)).astype('uint8').tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + image + b'\r\n')
+
+
+@app.route('/api/v1.0/video', methods=['GET'])
+def video_stream():
+    return Response(infinite_stream(), 
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
