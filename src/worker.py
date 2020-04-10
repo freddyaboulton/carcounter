@@ -7,7 +7,7 @@ import psycopg2
 import redis
 import requests
 from PIL import Image
-import struct
+import cv2
 
 from src.constants import (CAR_INDEX, DB_NAME, DB_PASSWORD, DB_URI, DB_USER,
                        IMAGE_HEIGHT, IMAGE_WIDTH, MODEL_ENDPOINT)
@@ -68,22 +68,23 @@ def cache_tracker_state() -> None:
     cache.set('tracker-state', json.dumps(tracker_state))
 
 
-def to_redis(cache, a: np.ndarray, key: str) -> None:
+def to_redis(cache, image: np.ndarray, key: str) -> None:
    """Store given Numpy array 'a' in Redis under key 'n'"""
-   h, w = a.shape
-   shape = struct.pack('>II',h, w)
-   encoded = shape + a.tobytes()
+   _, buffer = cv2.imencode('.png', image)
 
-   # Store encoded data in Redis
-   cache.set(key, encoded)
+   image_bytes = np.array(buffer).tostring()
+
+   # Write into redis server
+   cache.set(key, image_bytes)
 
 
 def from_redis(cache, key: str) -> np.ndarray:
    """Retrieve Numpy array from Redis key 'n'"""
-   encoded = cache.get(key)
-   h, w = struct.unpack('>II', encoded[:8])
-   a = np.frombuffer(encoded, dtype=np.uint16, offset=8).reshape(h,w)
-   return a
+   image_bytes = cache.get(key)
+   
+   # Decoding CV2+Redis
+   decoded = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), 1)
+   return decoded
 
 
 def process_image(date_time: str, image: np.ndarray) -> None:
