@@ -52,3 +52,4 @@ class TrackedObject:
     def deserialize(cls, state: Dict[str, Any]) -> Any:
         track = TrackedObject(state['id'], state['box'])
         track.color = state['color']
+        return track
