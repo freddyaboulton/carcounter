@@ -1,4 +1,4 @@
-from flask import Flask, Response
+from flask import Flask, Response, jsonify
 from flask import request, abort
 from redis import Redis
 from rq import Queue
@@ -25,21 +25,14 @@ def main():
     return 200
 
 
-def infinite_stream():
-    while True:
-        if cache.exists('latest-image'):
-            image = from_redis(cache, 'latest-image')
-            image = image.tobytes()
-        else:
-            image = np.zeros((300, 300, 3)).astype('uint8').tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + image + b'\r\n')
-
-
-@app.route('/api/v1.0/video', methods=['GET'])
-def video_stream():
-    return Response(infinite_stream(), 
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/api/v1.0/annotated-image', methods=['GET'])
+def annotated_image():
+    if cache.exists('latest-image'):
+        image = from_redis(cache, 'latest-image')
+        image = image.tolist()
+    else:
+        image = np.zeros((300, 300, 3)).astype('uint8').tolist()
+    return jsonify({'image': image})
 
 
 if __name__ == '__main__':
