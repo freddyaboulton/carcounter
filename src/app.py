@@ -22,7 +22,7 @@ def main():
 
     image = np.array(request.json['image'], dtype='uint8')
     queue.enqueue(process_image, args=(date_time, image))
-    return 200
+    return jsonify({'status': 'Success'}), 201
 
 
 @app.route('/api/v1.0/annotated-image', methods=['GET'])
